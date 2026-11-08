@@ -348,6 +348,11 @@ header{padding-bottom:18px}.eyebrow{color:#dca971}h1{color:#f7e6c7;text-shadow:0
 .music-toggle:focus-visible{outline:2px solid #edc789;outline-offset:4px}
 .music-toggle:disabled{opacity:.5;cursor:wait}
 .music-status{margin:-8px 0 0;font-size:12px;color:#e7bc94}
+/* Title removed: the intro now sits under the people count, and the gift pile is larger and easier to tap. */
+.panel .intro{margin:-6px 0 0;line-height:1.6}
+header{padding-block:4px 12px}
+.floor{width:86%;left:-1%}
+@media(max-width:440px){.floor{width:94%;left:-2%}}
 
 </style>
 </head>
@@ -359,8 +364,6 @@ header{padding-bottom:18px}.eyebrow{color:#dca971}h1{color:#f7e6c7;text-shadow:0
   <div class="string" id="string" aria-hidden="true"></div>
   <header>
     <div class="eyebrow">Merry Christmas · 交換禮物</div>
-    <h1>聖誕樹下抽禮物</h1>
-    <p class="lead">設定人數，輪流抽出號碼，抽過的號碼不會再出現。</p>
   </header>
 
   <div class="layout">
@@ -408,6 +411,7 @@ header{padding-bottom:18px}.eyebrow{color:#dca971}h1{color:#f7e6c7;text-shadow:0
           <button type="button" id="plus" aria-label="增加人數"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
         </div>
       </div>
+      <p class="note intro">設定人數，輪流抽出號碼，抽過的號碼不會再出現。</p>
       <div class="status"><b id="left">10</b><span id="leftText">份禮物還在樹下</span></div>
       <button class="draw" id="draw" type="button">
         <svg class="i" viewBox="0 0 24 24"><path d="M20 12v10H4V12M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
@@ -560,11 +564,11 @@ header{padding-bottom:18px}.eyebrow{color:#dca971}h1{color:#f7e6c7;text-shadow:0
   }
   /* Stack the gifts like a real pile: big boxes at the bottom, smaller ones resting on top, each a little tilted. */
   function pileLayout(looks, W) {
-    const n = looks.length, s = Math.min(1.25, Math.max(.8, W / 350)) * (n > 14 ? .86 : n > 8 ? .95 : 1.08);
+    const n = looks.length, s = Math.min(1.25, Math.max(.8, W / 350)) * (n > 14 ? .86 : n > 8 ? .95 : 1.08) * 1.3;
     const order = looks.map((l, i) => i).sort((a, b) => looks[b].w * looks[b].h - looks[a].w * looks[a].h);
     const rows = [[]]; let used = 0;
     for (const i of order) {
-      const r = rows.length - 1, cap = W * Math.max(.24, (n > 12 ? .8 : .66) - r * .16), w = looks[i].w * s * .8;
+      const r = rows.length - 1, cap = W * Math.max(.34, .98 - r * .2), w = looks[i].w * s * .8;
       if (used + w > cap && rows[r].length) { rows.push([]); used = 0; }
       rows[rows.length - 1].push(i); used += w;
     }
