@@ -676,26 +676,26 @@ header{padding-bottom:18px}.eyebrow{color:#dca971}h1{color:#f7e6c7;text-shadow:0
     } catch {}
   }
 
-  /* ---------- original Christmas music-box waltz (no audio downloads) ---------- */
+  /* ---------- mellow piano and warm sustained harmony (no audio downloads) ---------- */
   const musicButton = $('music'), musicStatus = $('musicStatus');
-  let musicCtx, musicBus, musicDry, musicWet, musicTimer, musicOn = false, musicEpoch = 0;
+  let musicCtx, musicBus, musicDry, musicWet, musicPianoWave, musicPadWave, musicTimer, musicOn = false, musicEpoch = 0;
   let nextMusicBar = 0, musicBar = 0;
-  const musicVoices = new Set(), beat = 60 / 92;
-  // Each bar has three beats; a gentle original melody over familiar festive harmony.
+  const musicVoices = new Set(), beat = 60 / 68;
+  // Four-beat phrases, a lower melody, soft broken chords and slowly swelling harmony.
   const musicScore = [
-    [[72,1],[76,.5],[79,.5],[76,1]], [[74,1],[71,1],[67,1]],
-    [[72,.5],[76,.5],[81,1],[79,1]], [[77,1],[76,.5],[74,.5],[72,1]],
-    [[76,.5],[79,.5],[84,1.5],[83,.5]], [[81,1],[79,1],[76,1]],
-    [[77,.5],[76,.5],[74,1],[71,1]], [[72,2],[0,1]],
-    [[79,1],[76,.5],[79,.5],[84,1]], [[83,1],[79,.5],[77,.5],[74,1]],
-    [[81,.5],[79,.5],[76,1],[72,1]], [[74,1],[77,.5],[79,.5],[81,1]],
-    [[79,.5],[76,.5],[72,1],[76,1]], [[77,1],[74,1],[71,1]],
-    [[74,.5],[76,.5],[79,1],[71,1]], [[72,2.5],[0,.5]]
+    [[67,1.5],[64,.5],[62,1],[64,1]], [[64,2],[60,1],[0,1]],
+    [[65,1.5],[69,.5],[67,2]], [[62,2],[64,1],[0,1]],
+    [[67,1],[71,1],[72,2]], [[71,1.5],[69,.5],[67,1],[64,1]],
+    [[65,2],[64,1],[62,1]], [[60,3],[0,1]],
+    [[72,2],[71,1],[67,1]], [[69,1.5],[67,.5],[64,2]],
+    [[65,1],[69,1],[72,1.5],[71,.5]], [[67,2],[62,1],[0,1]],
+    [[64,1.5],[67,.5],[71,2]], [[69,1],[65,1],[64,1],[62,1]],
+    [[62,1],[64,1],[67,1],[59,1]], [[60,3],[0,1]]
   ];
-  const musicChords = [[48,55,64],[43,55,59],[45,57,64],[41,53,60],
-    [48,55,64],[45,57,64],[43,55,62],[48,55,64],
-    [48,55,64],[43,55,59],[45,57,64],[41,53,60],
-    [48,55,64],[41,53,60],[43,55,62],[48,55,64]];
+  const musicChords = [[48,55,59,64],[45,52,55,60],[41,48,52,57],[43,50,57,62],
+    [48,55,59,64],[45,52,55,60],[38,45,53,60],[48,55,59,64],
+    [48,55,59,64],[45,52,55,60],[41,48,52,57],[43,50,57,62],
+    [48,55,59,64],[41,48,52,57],[43,50,55,59],[48,55,60,64]];
   function renderMusic() {
     musicButton.setAttribute('aria-checked', String(musicOn));
     musicButton.title = musicOn ? '暫停聖誕背景音樂' : '播放聖誕背景音樂';
@@ -704,30 +704,46 @@ header{padding-bottom:18px}.eyebrow{color:#dca971}h1{color:#f7e6c7;text-shadow:0
     const Audio = window.AudioContext || window.webkitAudioContext;
     if (!Audio) throw new Error('Audio is unavailable');
     musicCtx = new Audio();
+    musicPianoWave = musicCtx.createPeriodicWave(new Float32Array(7), new Float32Array([0,1,.26,.1,.04,.015,.008]));
+    musicPadWave = musicCtx.createPeriodicWave(new Float32Array(5), new Float32Array([0,1,.18,.06,.02]));
     musicBus = musicCtx.createGain(); musicBus.gain.value = 0; musicBus.connect(musicCtx.destination);
-    musicDry = musicCtx.createGain(); musicDry.gain.value = .82; musicDry.connect(musicBus);
+    const warmth = musicCtx.createBiquadFilter(); warmth.type = 'lowpass'; warmth.frequency.value = 2200; warmth.Q.value = .45; warmth.connect(musicBus);
+    musicDry = musicCtx.createGain(); musicDry.gain.value = .78; musicDry.connect(warmth);
     musicWet = musicCtx.createConvolver();
-    const length = Math.floor(musicCtx.sampleRate * 1.25), impulse = musicCtx.createBuffer(2, length, musicCtx.sampleRate);
+    const length = Math.floor(musicCtx.sampleRate * 2.4), impulse = musicCtx.createBuffer(2, length, musicCtx.sampleRate);
     for (let channel = 0; channel < 2; channel++) {
       const data = impulse.getChannelData(channel);
-      for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 3) * .35;
+      for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2.8) * .3;
     }
     musicWet.buffer = impulse;
-    const room = musicCtx.createGain(); room.gain.value = .18; musicWet.connect(room); room.connect(musicBus);
+    const room = musicCtx.createGain(); room.gain.value = .26; musicWet.connect(room); room.connect(warmth);
   }
-  function musicTone(midi, when, duration, level, bell = false) {
+  function musicTone(midi, when, duration, level, voice = 'piano') {
     if (!midi) return;
     const frequency = 440 * Math.pow(2, (midi - 69) / 12);
-    const partials = bell ? [[1,1],[2,.17],[3,.045]] : [[1,1]];
-    for (const [ratio, strength] of partials) {
-      const osc = musicCtx.createOscillator(), envelope = musicCtx.createGain();
-      osc.type = 'sine'; osc.frequency.value = frequency * ratio;
-      osc.connect(envelope); envelope.connect(musicDry); envelope.connect(musicWet);
+    const layers = voice === 'pad' ? [[.5,-4],[.5,4]] : [[1,0]];
+    for (const [strength, detune] of layers) {
+      const osc = musicCtx.createOscillator(), envelope = musicCtx.createGain(), felt = musicCtx.createBiquadFilter();
+      osc.frequency.value = frequency; osc.detune.value = detune;
+      if (voice === 'piano') osc.setPeriodicWave(musicPianoWave);
+      else if (voice === 'pad') osc.setPeriodicWave(musicPadWave);
+      else osc.type = 'sine';
+      felt.type = 'lowpass'; felt.Q.value = .4;
+      felt.frequency.setValueAtTime(voice === 'piano' ? 1500 : 700, when);
+      felt.frequency.exponentialRampToValueAtTime(voice === 'piano' ? 650 : 500, when + duration);
+      osc.connect(felt); felt.connect(envelope); envelope.connect(musicDry); envelope.connect(musicWet);
       envelope.gain.setValueAtTime(0, when);
-      envelope.gain.linearRampToValueAtTime(level * strength, when + .018);
-      envelope.gain.exponentialRampToValueAtTime(.0001, when + duration);
+      if (voice === 'pad') {
+        envelope.gain.linearRampToValueAtTime(level * strength, when + .8);
+        envelope.gain.linearRampToValueAtTime(level * strength * .8, when + duration * .6);
+        envelope.gain.linearRampToValueAtTime(0, when + duration);
+      } else {
+        envelope.gain.linearRampToValueAtTime(level * strength, when + (voice === 'piano' ? .035 : .08));
+        envelope.gain.exponentialRampToValueAtTime(level * strength * .24, when + .75);
+        envelope.gain.exponentialRampToValueAtTime(.0001, when + duration);
+      }
       musicVoices.add(osc);
-      osc.onended = () => { musicVoices.delete(osc); osc.disconnect(); envelope.disconnect(); };
+      osc.onended = () => { musicVoices.delete(osc); osc.disconnect(); felt.disconnect(); envelope.disconnect(); };
       osc.start(when); osc.stop(when + duration + .03);
     }
   }
@@ -738,14 +754,16 @@ header{padding-bottom:18px}.eyebrow{color:#dca971}h1{color:#f7e6c7;text-shadow:0
       const bar = musicBar % musicScore.length;
       let offset = 0;
       for (const [note, beats] of musicScore[bar]) {
-        musicTone(note, nextMusicBar + offset * beat, Math.max(.6, beats * beat + .3), .095, true);
+        musicTone(note, nextMusicBar + offset * beat, Math.max(1.8, beats * beat + 1), .092);
         offset += beats;
       }
       const chord = musicChords[bar];
-      musicTone(chord[0], nextMusicBar, beat * 2.6, .07);
-      musicTone(chord[1], nextMusicBar + beat, beat * 1.5, .04);
-      musicTone(chord[2], nextMusicBar + beat * 2, beat * 1.3, .038);
-      nextMusicBar += beat * 3; musicBar++;
+      musicTone(chord[0] - 12, nextMusicBar, beat * 3.8, .075, 'bass');
+      for (const note of chord.slice(1)) musicTone(note, nextMusicBar, beat * 4.8, .027, 'pad');
+      [1,2,3,2,1,3].forEach((index, i) => {
+        musicTone(chord[index], nextMusicBar + (i * .5 + .5) * beat, beat * 2.2, i % 2 ? .023 : .03);
+      });
+      nextMusicBar += beat * 4; musicBar++;
     }
   }
   function stopMusic() {
