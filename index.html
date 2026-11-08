@@ -128,12 +128,12 @@ h2 span{color:var(--muted);font-weight:400;font-size:13px}
 svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 /* reveal */
-.reveal{position:fixed;inset:0;z-index:20;display:grid;place-items:center;
-  padding:env(safe-area-inset-top,0px) max(16px,env(safe-area-inset-right,0px)) env(safe-area-inset-bottom,0px) max(16px,env(safe-area-inset-left,0px));
+.reveal{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;
+  padding:max(12px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(12px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
   background:radial-gradient(circle at 50% 48%,rgba(243,199,107,.22),rgba(10,22,19,.92) 60%);backdrop-filter:blur(3px);
   animation:fade .3s ease}
 #fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3}
-.stage{position:relative;display:grid;justify-items:center;gap:18px;z-index:2}
+.stage{position:relative;display:grid;justify-items:center;gap:18px;z-index:2;flex:none;margin:auto}
 .big{position:relative;width:200px;height:170px}
 .big .box{z-index:3}
 .big .card{position:absolute;left:12%;right:12%;bottom:6%;height:150px;z-index:2;border-radius:14px;
@@ -229,7 +229,7 @@ h2{font-size:16px}.history{gap:7px}
 .ghost.warn{background:#f4dfd2;border-color:#b45743;color:#884332}
 .icon-btn{border-radius:50%;background:#f1ebd8;color:#6b745b;flex-shrink:0}
 .panel>.row:last-child{gap:8px;align-items:flex-end}
-.reveal{overflow:hidden;background:radial-gradient(ellipse at 50% 40%,#fff5daed,#efe0c5f5 75%);backdrop-filter:blur(8px)}
+.reveal{overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;background:radial-gradient(ellipse at 50% 40%,#fff5daed,#efe0c5f5 75%);backdrop-filter:blur(8px)}
 .stage{padding-top:110px;gap:22px;width:100%;max-width:420px}
 .stage::before{content:"";position:absolute;z-index:-1;top:-80px;left:50%;width:min(520px,100vw);height:520px;transform:translateX(-50%);border-radius:50%;background:radial-gradient(circle,#fffdf1 5%,#f5d78c3d 44%,transparent 68%);pointer-events:none}
 .big{cursor:default}.big:hover{transform:none}
@@ -299,6 +299,16 @@ header{padding-bottom:18px}.eyebrow{color:#dca971}h1{color:#f7e6c7;text-shadow:0
 @media(min-width:860px){.layout{grid-template-columns:1.16fr 1fr;gap:42px}.panel{margin-top:0}.scene{margin-top:-15px}.wrap{padding-top:8px}}
 @media(max-width:859px){.layout{gap:16px}.hearth-art{border-radius:16px}.scene{width:100%}.floor{width:74%;max-width:none}.panel{margin-top:-6px}.postcard-corner{opacity:.45}}
 @media(max-width:440px){.wrap{padding-top:5px}.layout{gap:10px}.hearth-art{aspect-ratio:1/1.16;object-fit:cover;object-position:center top}.floor{bottom:1%;width:78%;left:-2%}.panel{margin-top:0}.stage{padding-top:80px;gap:18px}.caption{font-size:21px}.big{width:210px;height:210px}.big .card{height:150px}}
+@media (max-height:640px) and (min-width:520px){
+  .stage{max-width:620px;padding-top:0;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);grid-template-rows:1fr 1fr;gap:12px 24px}
+  .stage::before{inset:0;width:auto;height:auto;transform:none;background:radial-gradient(ellipse closest-side,#edc47830,transparent)}
+  .stage .big{grid-column:1;grid-row:1/3;align-self:center;margin-top:68px;width:170px;height:170px}
+  .stage .big .card{height:118px}
+  .stage .big .card strong{font-size:58px}
+  .stage .big.open .card{transform:translateY(-96px)}
+  .stage .caption{grid-column:2;grid-row:1;align-self:end;font-size:20px}
+  .stage .actions{grid-column:2;grid-row:2;align-self:start}
+}
 @media(prefers-reduced-motion:reduce){.scene::after{animation:none}.gift,.gift *{animation:none!important;transition:none!important}}
 
 /* Animated light is registered to the illustration's intrinsic coordinates. */
@@ -891,6 +901,7 @@ header{padding-bottom:18px}.eyebrow{color:#dca971}h1{color:#f7e6c7;text-shadow:0
     $('caption').innerHTML = '';
     big.classList.remove('open', 'glow', 'shake');
     reveal$.hidden = false;
+    reveal$.scrollTop = 0;
     const from = target.getBoundingClientRect(), to = big.getBoundingClientRect();
     target.style.visibility = 'hidden';
     if (!reduced) {
