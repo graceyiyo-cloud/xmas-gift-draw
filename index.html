@@ -328,6 +328,17 @@ header{padding-bottom:18px}.eyebrow{color:#dca971}h1{color:#f7e6c7;text-shadow:0
 @media(max-width:440px){.history{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(prefers-reduced-motion:reduce){.room-lights *{animation:none!important}.fire-halo{opacity:.38}.flame{opacity:.25}.lamp-halo,.lamp-wick{opacity:.4}.star-halo,.star-glint{opacity:.35}.ember{opacity:0}}
 
+.music-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-top:12px;border-top:1px solid #bfa07726}
+.music-label{display:flex;align-items:center;gap:8px;font-size:14px;color:#d8c19e}
+.music-label .i{width:18px;height:18px;stroke-width:1.5}
+.music-toggle{position:relative;width:48px;height:28px;flex:none;border:1px solid #bd966044;border-radius:999px;background:#211811;cursor:pointer;transition:background .2s ease,border-color .2s ease}
+.music-toggle::after{content:"";position:absolute;left:4px;top:4px;width:18px;height:18px;border-radius:50%;background:#9c886a;box-shadow:0 1px 3px #0003;transition:transform .2s ease,background .2s ease}
+.music-toggle[aria-checked="true"]{background:#b28548;border-color:#e6bf7b}
+.music-toggle[aria-checked="true"]::after{transform:translateX(20px);background:#fff0cc}
+.music-toggle:focus-visible{outline:2px solid #edc789;outline-offset:4px}
+.music-toggle:disabled{opacity:.5;cursor:wait}
+.music-status{margin:-8px 0 0;font-size:12px;color:#e7bc94}
+
 </style>
 </head>
 <body>
@@ -397,6 +408,11 @@ header{padding-bottom:18px}.eyebrow{color:#dca971}h1{color:#f7e6c7;text-shadow:0
         <h2>已抽出<span id="drawnCount">0 / 10</span></h2>
         <ol class="history" id="history"></ol>
       </div>
+      <div class="music-row">
+        <span class="music-label" id="musicLabel"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l12-2v13M9 9l12-2"/><ellipse cx="6" cy="18" rx="3" ry="3"/><ellipse cx="18" cy="16" rx="3" ry="3"/></svg>背景音樂</span>
+        <button class="music-toggle" id="music" type="button" role="switch" aria-checked="false" aria-labelledby="musicLabel" title="播放聖誕背景音樂"></button>
+      </div>
+      <p id="musicStatus" class="music-status" role="status" hidden></p>
       <div class="row">
         <div class="tools">
           <button class="ghost" id="undo" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg><span>復原上一抽</span></button>
@@ -659,6 +675,108 @@ header{padding-bottom:18px}.eyebrow{color:#dca971}h1{color:#f7e6c7;text-shadow:0
       if (kind === 'open') [[1318.5,0],[1568,.09],[2093,.18],[2637,.3]].forEach(([f, s]) => { tone(f, s, 1.1, .1); tone(f * 2.01, s, .6, .025); });
     } catch {}
   }
+
+  /* ---------- original Christmas music-box waltz (no audio downloads) ---------- */
+  const musicButton = $('music'), musicStatus = $('musicStatus');
+  let musicCtx, musicBus, musicDry, musicWet, musicTimer, musicOn = false, musicEpoch = 0;
+  let nextMusicBar = 0, musicBar = 0;
+  const musicVoices = new Set(), beat = 60 / 92;
+  // Each bar has three beats; a gentle original melody over familiar festive harmony.
+  const musicScore = [
+    [[72,1],[76,.5],[79,.5],[76,1]], [[74,1],[71,1],[67,1]],
+    [[72,.5],[76,.5],[81,1],[79,1]], [[77,1],[76,.5],[74,.5],[72,1]],
+    [[76,.5],[79,.5],[84,1.5],[83,.5]], [[81,1],[79,1],[76,1]],
+    [[77,.5],[76,.5],[74,1],[71,1]], [[72,2],[0,1]],
+    [[79,1],[76,.5],[79,.5],[84,1]], [[83,1],[79,.5],[77,.5],[74,1]],
+    [[81,.5],[79,.5],[76,1],[72,1]], [[74,1],[77,.5],[79,.5],[81,1]],
+    [[79,.5],[76,.5],[72,1],[76,1]], [[77,1],[74,1],[71,1]],
+    [[74,.5],[76,.5],[79,1],[71,1]], [[72,2.5],[0,.5]]
+  ];
+  const musicChords = [[48,55,64],[43,55,59],[45,57,64],[41,53,60],
+    [48,55,64],[45,57,64],[43,55,62],[48,55,64],
+    [48,55,64],[43,55,59],[45,57,64],[41,53,60],
+    [48,55,64],[41,53,60],[43,55,62],[48,55,64]];
+  function renderMusic() {
+    musicButton.setAttribute('aria-checked', String(musicOn));
+    musicButton.title = musicOn ? '暫停聖誕背景音樂' : '播放聖誕背景音樂';
+  }
+  function buildMusicGraph() {
+    const Audio = window.AudioContext || window.webkitAudioContext;
+    if (!Audio) throw new Error('Audio is unavailable');
+    musicCtx = new Audio();
+    musicBus = musicCtx.createGain(); musicBus.gain.value = 0; musicBus.connect(musicCtx.destination);
+    musicDry = musicCtx.createGain(); musicDry.gain.value = .82; musicDry.connect(musicBus);
+    musicWet = musicCtx.createConvolver();
+    const length = Math.floor(musicCtx.sampleRate * 1.25), impulse = musicCtx.createBuffer(2, length, musicCtx.sampleRate);
+    for (let channel = 0; channel < 2; channel++) {
+      const data = impulse.getChannelData(channel);
+      for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 3) * .35;
+    }
+    musicWet.buffer = impulse;
+    const room = musicCtx.createGain(); room.gain.value = .18; musicWet.connect(room); room.connect(musicBus);
+  }
+  function musicTone(midi, when, duration, level, bell = false) {
+    if (!midi) return;
+    const frequency = 440 * Math.pow(2, (midi - 69) / 12);
+    const partials = bell ? [[1,1],[2,.17],[3,.045]] : [[1,1]];
+    for (const [ratio, strength] of partials) {
+      const osc = musicCtx.createOscillator(), envelope = musicCtx.createGain();
+      osc.type = 'sine'; osc.frequency.value = frequency * ratio;
+      osc.connect(envelope); envelope.connect(musicDry); envelope.connect(musicWet);
+      envelope.gain.setValueAtTime(0, when);
+      envelope.gain.linearRampToValueAtTime(level * strength, when + .018);
+      envelope.gain.exponentialRampToValueAtTime(.0001, when + duration);
+      musicVoices.add(osc);
+      osc.onended = () => { musicVoices.delete(osc); osc.disconnect(); envelope.disconnect(); };
+      osc.start(when); osc.stop(when + duration + .03);
+    }
+  }
+  function scheduleMusic() {
+    if (!musicOn || musicCtx.state !== 'running') return;
+    if (nextMusicBar < musicCtx.currentTime) nextMusicBar = musicCtx.currentTime + .05;
+    while (nextMusicBar < musicCtx.currentTime + .4) {
+      const bar = musicBar % musicScore.length;
+      let offset = 0;
+      for (const [note, beats] of musicScore[bar]) {
+        musicTone(note, nextMusicBar + offset * beat, Math.max(.6, beats * beat + .3), .095, true);
+        offset += beats;
+      }
+      const chord = musicChords[bar];
+      musicTone(chord[0], nextMusicBar, beat * 2.6, .07);
+      musicTone(chord[1], nextMusicBar + beat, beat * 1.5, .04);
+      musicTone(chord[2], nextMusicBar + beat * 2, beat * 1.3, .038);
+      nextMusicBar += beat * 3; musicBar++;
+    }
+  }
+  function stopMusic() {
+    const epoch = ++musicEpoch;
+    musicOn = false; clearInterval(musicTimer); musicTimer = null; renderMusic();
+    if (!musicCtx || !musicBus) return;
+    const now = musicCtx.currentTime;
+    musicBus.gain.cancelScheduledValues(now); musicBus.gain.setTargetAtTime(0, now, .04);
+    for (const voice of musicVoices) { try { voice.stop(now + .18); } catch {} }
+    setTimeout(() => { if (epoch === musicEpoch && musicCtx.state === 'running') musicCtx.suspend().catch(() => {}); }, 220);
+  }
+  musicButton.addEventListener('click', async () => {
+    musicStatus.hidden = true;
+    if (musicOn) { stopMusic(); return; }
+    const epoch = ++musicEpoch;
+    musicButton.disabled = true;
+    try {
+      if (!musicCtx || musicCtx.state === 'closed') buildMusicGraph();
+      await musicCtx.resume();
+      if (epoch !== musicEpoch || document.hidden) return;
+      if (musicCtx.state !== 'running') throw new Error('Audio did not start');
+      musicOn = true; musicBar = 0; nextMusicBar = musicCtx.currentTime + .06;
+      musicBus.gain.cancelScheduledValues(musicCtx.currentTime);
+      musicBus.gain.setTargetAtTime(.38, musicCtx.currentTime, .12);
+      scheduleMusic(); musicTimer = setInterval(scheduleMusic, 120); renderMusic();
+    } catch {
+      stopMusic(); musicStatus.textContent = '音樂暫時無法播放，請再試一次。'; musicStatus.hidden = false;
+    } finally { musicButton.disabled = false; }
+  });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) stopMusic(); });
+  addEventListener('pagehide', stopMusic);
 
   /* ---------- sparkles ---------- */
   const fx = $('fx'), fc = fx.getContext('2d'); let parts = [], fxRunning = false;
